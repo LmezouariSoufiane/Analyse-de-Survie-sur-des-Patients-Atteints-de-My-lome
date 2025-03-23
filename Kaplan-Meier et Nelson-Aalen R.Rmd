@@ -1,0 +1,602 @@
+---
+title: "TP"
+author: "Lmezouari Soufiane"
+date: "2025-01-18"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+##------------------------Tp1-------------------------
+```{r}
+library(survival)
+library(ggplot2)
+library(dplyr)
+library(stringr)
+```
+
+
+```{r}
+data <- read.table("myel_comp.txt", header = TRUE, sep = "", stringsAsFactors = FALSE)
+```
+
+```{r}
+head(data)
+```
+
+```{r}
+ library ( dplyr )
+data <- read.table ("myel_comp.txt", header = TRUE )
+# Selectionner uniquement les colonnes AGE , SEXE , BENCE \_J, CALCIUM 
+dat <- data %>% select(AGE , SEXE , BENCE_J, CALCIUM)
+head (dat )
+```
+
+```{r}
+summary(dat)
+```
+
+##2-b
+```{r}
+dat$SEXE <- factor(dat$SEXE, levels = c(0, 1),
+                   labels = c("Homme", "Femme"))
+dat$BENCE_J <- factor(dat$BENCE_J, levels = c(0, 1),
+                      labels = c("Non", "Oui"))
+
+```
+
+```{r}
+
+colors_sexe <- c("Homme" = "#CCCCFF", "Femme" = "#6666FF")
+colors_bence_j <- c("Non" = "#CCCCFF", "Oui" = "#6666FF")
+
+ggplot(dat, aes(x = SEXE, y = AGE, fill = SEXE)) +
+  geom_boxplot() +
+  scale_fill_manual(values = colors_sexe) +
+  labs(x = "Sexe",
+       y = "Âge") +
+  theme_minimal()
+
+ggplot(dat, aes(x = BENCE_J, y = AGE, fill = BENCE_J)) +
+  geom_boxplot() +
+  scale_fill_manual(values = colors_bence_j) +
+  labs(x = "BENCE_J",
+       y = "Âge") +
+  theme_minimal()
+
+```
+
+
+
+
+## Q 2-c
+
+
+
+##Q 2-d l'age moyene 
+
+
+```{r}
+shapiro_test <- shapiro.test(dat$AGE)
+shapiro_test
+
+```
+p-value > 0.05 : distribution normale.
+
+
+
+```{r}
+fligner.test(AGE ~ BENCE_J, data = dat)
+
+```
+
+```{r}
+t.test(AGE ~ BENCE_J, data = dat, var.equal = TRUE)
+
+```
+
+```{r}
+result <- aov(AGE ~ factor(BENCE_J), data = dat)
+summary(result)
+```
+
+
+
+##2 e Lien entre le sexe et l’indice de Bence Jones
+
+
+```{r}
+
+shapiro.test(data$BENCE_J)
+```
+
+```{r}
+data_sexe_0 <- dat %>% filter(SEXE == 0) %>% select(BENCE_J)
+data_sexe_1 <- dat %>% filter(SEXE == 1) %>% select(BENCE_J)
+
+shapiro.test(data_sexe_0$BENCE_J)  # Sexe = 0
+shapiro.test(data_sexe_1$BENCE_J)  # Sexe = 1
+
+```
+
+
+```{r}
+wilcox.test(BENCE_J ~ SEXE, data = dat)
+```
+
+## 2 F L’age entre les diff´erents niveaux de consommation de calcium
+
+
+```{r}
+dat$CALCIUM <- factor(dat$CALCIUM)
+
+custom_palette <- colorRampPalette(c("#CCCCFF", "#6666FF"))(length(unique(dat$CALCIUM)))
+
+ggplot(dat, aes(x = CALCIUM, y = AGE, fill = CALCIUM)) +
+  geom_boxplot() +
+  scale_fill_manual(values = custom_palette) +
+  geom_jitter(width = 0.2, alpha = 0.5, color = "black") +
+  labs(
+       x = "Niveau de consommation de calcium",
+       y = "Âge") +
+  theme_minimal()
+
+```
+
+
+# ---- --------------------Question 3: Analyse de survie ------------------------
+# .a Calcul des statistiques descriptives pour la survie
+
+```{r}
+library("survival")
+dat2 <- data
+dat <- dat2 %>% filter(P_MYEL > 0)
+
+summary(dat2$TEMPS)
+
+t.test(dat2$TEMPS)
+
+plot(survfit(Surv(TEMPS, DECES) ~ 1, data = dat2), 
+     main = "Courbe de survie", xlab = "Temps", ylab = "Survie")
+
+```
+
+
+
+```{r}
+library(survival)
+
+surv_model <- survfit(Surv(TEMPS, DECES) ~ 1, data = dat2)
+
+
+plot(surv_model,xlab = "Temps", ylab = col = "blue", lwd = 2, conf.int = TRUE,mark.time = TRUE, xlim = c(0, 100),  ylim = c(0, 1),cex.axis = 1.2,cex.lab = 1.5, cex.main = 1.8,            lty = 1,lcol = "darkblue", font.lab = 2)
+
+legend("topright", legend = "Survie globale", col = "blue", lty = 1, lwd = 2)
+
+
+```
+
+
+
+
+```{r}
+dat_avec=dat2%>%filter(BENCE_J=="1")
+dat_sans=dat2%>%filter(BENCE_J=="0")
+
+
+summary(dat_avec$TEMPS)
+t.test(dat_avec$TEMPS)
+
+
+summary(dat_sans$TEMPS)
+
+t.test(dat_sans$TEMPS)
+
+plot(survfit(Surv(TEMPS, DECES)  ~ 1, data = dat_avec),
+col = "orange", main = "Courbes de survie", xlab = "Temps",ylab = "Probabilit´e de survie")
+lines(survfit(Surv(TEMPS, DECES)  ~ 1, data = dat_sans), col = "#FF6666")
+legend("topright", legend = c("Abscence", "Presence"),
+col = c("#FF6666", "orange"), lty = 1)
+
+
+#Avec
+summary(dat_avec$TEMPS)
+t.test(dat_avec$TEMPS)
+plot(survfit(Surv(TEMPS, DECES) ~˜1,data = dat_avec))
+
+#Sans
+summary(dat_sans$TEMPS)
+t.test(dat_sans$TEMPS)
+plot(survfit(Surv(TEMPS, DECES) ~1,data = dat_sans))
+```
+
+
+
+```{r}
+dat_avec = dat2 %>% filter(BENCE_J == "1")
+dat_sans = dat2 %>% filter(BENCE_J == "0")
+
+summary(dat_avec$TEMPS)
+summary(dat_sans$TEMPS)
+```
+
+
+```{r}
+t.test(dat_sans$TEMPS)
+
+
+```
+
+
+```{r}
+t.test(dat_avec$TEMPS)
+```
+
+
+```{r}
+surv_avec <- survfit(Surv(TEMPS, DECES) ~ 1, data = dat_avec)
+surv_sans <- survfit(Surv(TEMPS, DECES) ~ 1, data = dat_sans)
+
+
+
+plot(surv_avec, col = "#FF5733", lwd = 2, lty = 1,
+     xlab = "Temps", ylab = "Probabilité de survie",
+     xlim = c(0, max(dat2$TEMPS, na.rm = TRUE)), ylim = c(0, 1))
+
+lines(surv_sans, col = "#3366FF", lwd = 2, lty = 2)
+
+
+legend("topright", legend = c("Présence (BENCE_J = 1)", "Absence (BENCE_J = 0)"),
+       col = c("#FF5733", "#3366FF"), lty = c(1, 2), lwd = 2, bg = "white")
+
+grid()
+
+```
+
+```{r}
+surv_avec <- survfit(Surv(TEMPS, DECES) ~ 1, data = dat_avec)
+surv_sans <- survfit(Surv(TEMPS, DECES) ~ 1, data = dat_sans)
+
+
+par(mfrow = c(1, 2)) 
+
+plot(surv_avec, col = "#FF5733", lwd = 2, lty = 1, 
+     main = "Présence de Bence-Jones", xlab = "Temps", ylab = "Probabilité de survie",
+     xlim = c(0, max(dat2$TEMPS, na.rm = TRUE)), ylim = c(0, 1))
+grid()
+
+plot(surv_sans, col = "#3366FF", lwd = 2, lty = 1, 
+     main = "Absence de Bence-Jones", xlab = "Temps", ylab = "Probabilité de survie",
+     xlim = c(0, max(dat2$TEMPS, na.rm = TRUE)), ylim = c(0, 1))
+grid()
+
+par(mfrow = c(1, 1))
+```
+
+
+
+
+
+
+
+#-----(d) Test d’hypothèse : "Les courbes de survie sont égales dans les deux groupes"
+
+Pour tester cette hypothèse, utilisez le test de Log-rank.
+```{r}
+
+survdiff(Surv(TEMPS, DECES) ~ BENCE_J, data = dat2)
+```
+
+
+```{r}
+surv_obj <- Surv(dat2$TEMPS, dat2$DECES)
+
+
+cox_model <- coxph(surv_obj ~ BENCE_J, data = dat2)
+
+summary(cox_model)
+```
+ 
+
+#-----(e) Association entre la survie et le calcium
+
+
+```{r}
+
+cox_model <- coxph(Surv(TEMPS, DECES) ~ CALCIUM, data = dat2)
+
+summary(cox_model)
+```
+
+
+```{r}
+head(data)
+dat3<-data
+```
+
+
+
+
+```{r}
+
+nb_strates <- 3
+dat <- dat3 %>%
+  mutate(strate = ntile(CALCIUM, nb_strates)) 
+
+
+surv_models <- lapply(1:nb_strates, function(i) {
+  survfit(Surv(TEMPS, DECES) ~ 1, data = dat %>% filter(strate == i))})
+
+  
+```
+
+
+
+```{r}
+
+
+plot(surv_models[[1]], col = "blue",
+main = "Courbes de survie en fonction du calcium",
+xlab = "Temps", ylab = "Probabilit´e de survie", lwd = 2)
+for (i in 2:nb_strates) {
+lines(surv_models[[i]], col = i, lwd = 2)
+}
+legend("topright", legend = paste("Strate", 1:nb_strates),
+col = 1:nb_strates, lwd = 2)
+```
+
+
+
+```{r}
+
+
+surv_diff <- survdiff(Surv(TEMPS, DECES) ~ strate, data = dat)
+print(surv_diff)
+
+
+plot(surv_models[[1]], col = "#D92758",
+     xlab = "Temps", ylab = "Probabilité de survie",
+     lwd = 2, conf.int = FALSE)
+
+lines(surv_models[[2]], col = "#1E90FF", lwd = 2, conf.int = FALSE)
+lines(surv_models[[3]], col = "orange", lwd = 2, conf.int = FALSE)
+
+
+legend("topright", legend = paste("Strate", 1:nb_strates),
+       col = c("#D92758", "#1E90FF", "orange"), lwd = 2)
+
+grid()
+
+```
+
+
+
+## f
+
+```{r}
+#PQ
+survdiff(Surv(TEMPS, DECES)~ PQ, data = dat3)
+```
+
+
+```{r}
+#INFJ0
+survdiff(Surv(TEMPS, DECES) ~ INFJ0, data = dat3)
+```
+
+
+```{r}
+#SEXE
+survdiff(Surv(TEMPS, DECES) ~ SEXE, data = dat3)
+```
+
+
+```{r}
+#FRACTURE
+survdiff(Surv(TEMPS, DECES) ~ FRACTURE, data = dat3)
+
+```
+
+
+
+
+
+
+#  -------------------------------------Tp2-------------------------------------------
+--------------------------------------------------------------------------------------
+## Q1
+```{r}
+library(survival)
+temps <- c(6, 6, 6, 6, 7, 9, 10, 10, 11, 13, 16, 17, 19, 20, 22, 23, 25, 32, 32, 34, 35)
+censure <- c(0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1)  
+
+surv_obj <- Surv(time = temps, event = 1 - censure)
+
+km_fit <- survfit(surv_obj ~ 1)
+
+summary(km_fit)
+
+plot(km_fit, xlab = "Temps (semaines)", ylab = "Probabilité de survie", main = "Courbe de Kaplan-Meier", col = "blue", lwd = 2)
+
+```
+##Q 2 
+
+```{r}
+temps2 <- c(1, 3, 4, 5, 7, 8, 9, 10, 11, 13)
+censure2 <- c(0, 0, 1, 0, 1, 0, 0, 1, 0, 1)  
+
+surv_obj2 <- Surv(time = temps2, event = 1 - censure2)
+
+km_fit2<- survfit(surv_obj2 ~ 1)
+summary(km_fit2)
+
+plot(km_fit2, xlab = "Temps (mois)", ylab = "Probabilité de survie", main = "Kaplan-Meier vs Fleming-Harrington", col = "red", lwd = 2)
+lines(km_fit2, col = "red")
+
+fh_fit <- survfit(surv_obj2 ~ 1, type = "fh")  
+lines(fh_fit, col = "blue", lwd = 2, lty = 2)  
+summary(fh_fit)
+
+legend("topright", legend = c("Kaplan-Meier", "Fleming-Harrington"), col = c("red", "blue"), lty = c(1, 2), lwd = 2)
+
+
+```
+
+
+
+## Q3 
+
+```{r}
+library(survival)
+data(aml)
+fit <- survfit(Surv(time, status) ~ 1, data =aml)
+summary(fit)
+
+plot(fit)
+```
+
+
+
+
+
+
+
+#-------------------------------------Exercise 2---------------------------------------
+
+# Q 1
+```{r}
+new_env <- new.env()
+load("chomage_tp.rda", envir =new_env)
+dat <- data.frame(new_env$Dataset)
+summary(dat)
+dat$statut <- ifelse(dat$statut =="evenement", 1, 0)
+fit <- survfit(Surv(temps, statut) ~ 1, data =dat)
+ggsurvplot(fit, conf.int =TRUE, risk.table =TRUE, pval =TRUE,
+data =dat, surv.median.line ="hv", palette ="jco")
+```
+  
+```{r}
+hazard_cumulative <- 1- exp(-fit$cumhaz)
+times <- fit$time
+plot(times, hazard_cumulative, type ="s", col ="red", lty =2,
+xlab ="Temps", ylab ="Fonction de hasard cumulee",
+main ="Fonction de hasard cumulee")
+```
+## Q2 
+
+```{r}
+fit_aalen <- survfit(Surv(temps, statut) ~ 1, data =dat, stype =2)
+plot(fit_aalen, col ="blue", lty =2, lwd =2,
+xlab ="Temps",
+ylab ="Probabilite de survie",
+main ="Courbe de survie (Nelson Aalen)")
+```
+
+
+
+#Q3
+
+```{r}
+fit_male <- survfit(Surv(temps, statut) ~ 1, data =dat[dat$genre =="H", ])
+fit_female <- survfit(Surv(temps, statut) ~ 1, data =dat[dat$genre =="F", ])
+fit_combined <- survfit(Surv(temps, statut) ~ genre, data =dat)
+ggsurvplot(fit_combined, data =dat,
+conf.int =TRUE, risk.table =TRUE, pval =TRUE,
+surv.median.line ="hv", palette =c("blue", "red"),
+legend.labs =c("Hommes", "Femmes"))
+```
+
+### comparaison des courbes de survie avec le test du log-rank
+```{r}
+log_rank_test <- survdiff(Surv(temps, statut) ~ genre, data = dat)
+print(log_rank_test)
+
+```
+
+
+
+
+
+##---------------------------------------Ex3------------------------------------------
+
+```{r}
+nom_fichier <- load("leaving_home.rda", verbose = TRUE)
+DF <- eval(as.symbol(nom_fichier))
+
+DF$region <- as.character(DF$region)
+DF <- DF %>%
+  mutate(sexe = gsub("f\xe9minin", "féminin", sexe),
+         csp_pere = gsub("interm\xe9diaires", "intermédiaires", csp_pere),
+         csp_pere = gsub("travailleurs non qualifi<e9>s.", "travailleurs non qualifiés", csp_pere),
+         csp_pere = gsub("ouvriers qualifi<e9>s", "ouvriers qualifiés", csp_pere),
+         csp_pere = gsub("employ<e9>s qualifi<e9>s", "employés qualifiés", csp_pere),
+         csp_pere = gsub("autres ind<e9>pendants", "autres indépendants", csp_pere),
+         csp_pere = gsub("professions lib<e9>rales", "professions libérales", csp_pere),
+         langue = gsub("fran\xe7ais", "français", langue)) %>%
+  mutate(region = recode(region, 
+                         "R\xe9gion l\xe9manique (VD, VS, GE)" = "Région lémanique (VD, VS, GE)"))
+
+DF$c_deppar <- factor(ifelse(DF$c_deppar == "parti", 1, 0))
+
+donnees_evenement <- subset(DF, c_deppar == "1")
+
+fit <- survfit(Surv(agdeppar, c_deppar) ~ 1, data = donnees_evenement)
+summary(fit)
+plot(fit, xlab = "Âge", 
+     ylab = "Probabilité de rester chez ses parents", 
+     main = "Courbe de survie - Partir de chez ses parents")
+
+age_moyen_depart <- mean(donnees_evenement$agdeppar)
+cat("Âge moyen au départ : ", age_moyen_depart, "\n")
+
+langues <- unique(DF$langue)
+ages_par_langue <- list()
+for (langue in langues) {
+  ages_par_langue[[langue]] <- DF$agdeppar[DF$langue == langue]
+}
+
+test_mann_whitney <- wilcox.test(ages_par_langue[[1]], ages_par_langue[[2]])
+print(test_mann_whitney)
+
+```
+
+
+
+
+```{r}
+
+donnees_allemand <- DF %>% filter(langue == "allemand")
+fit_allemand <- survfit(Surv(agdeppar, c_deppar) ~ 1, data = donnees_allemand)
+plot(fit_allemand, col="orange", xlab = "Âge", 
+     ylab = "Probabilité de rester chez ses parents")
+
+donnees_italien <- DF %>% filter(langue == "italien")
+fit_italien <- survfit(Surv(agdeppar, c_deppar) ~ 1, data = donnees_italien)
+plot(fit_italien, col="red", xlab = "Âge", 
+     ylab = "Probabilité de rester chez ses parents")
+
+DF$langue <- iconv(DF$langue, from = "latin1", to = "UTF-8", sub = "NA")
+
+print(unique(DF$langue))
+donnees_fr <- DF %>%
+  filter(langue == "français") %>%
+  filter(!is.na(agdeppar) & !is.na(c_deppar)) # Supprimer les valeurs manquantes
+
+cat("Nombre d'observations pour 'français' : ", nrow(donnees_fr), "\n")
+
+if (nrow(donnees_fr) > 0) {
+  fit_fr <- survfit(Surv(agdeppar, c_deppar) ~ 1, data = donnees_fr)
+  
+  plot(fit_fr, col="blue", xlab = "Âge", 
+       ylab = "Probabilité de rester chez ses parents")
+} else {
+  cat("Aucune donnée valide pour 'français' après le filtrage.\n")
+}
+
+
+```
+
